@@ -17,6 +17,14 @@ const SKILLS_LIST = [
   { id: "hall",             label: "ホール" },
 ];
 
+// ★ 追加：スタッフ区分
+const STAFF_RANKS = [
+  { id: "chef",    label: "料理長" },
+  { id: "chief",   label: "チーフ" },
+  { id: "general", label: "一般職" },
+  { id: "pa",      label: "PA" },
+];
+
 const WORK_HOUR_LIMITS = [
   { id: "40h", label: "週40時間以下", weeklyMax: 40 },
   { id: "30h", label: "週30時間以下", weeklyMax: 30 },
@@ -30,13 +38,31 @@ const MEAL_COUNTS = [
   { id: "over200",  label: "200食超",   required: 6 },
 ];
 
+// ★ 追加：出勤曜日選択肢
+const DOW_OPTIONS = [
+  { id: 0, label: "日" },
+  { id: 1, label: "月" },
+  { id: 2, label: "火" },
+  { id: 3, label: "水" },
+  { id: 4, label: "木" },
+  { id: 5, label: "金" },
+  { id: 6, label: "土" },
+  { id: 7, label: "祝" }, // 7 = 祝日フラグ
+];
+
+// ★ 追加：希望休区分
+const REQUEST_TYPES = [
+  { id: "off",  label: "休日希望", bg: "#fee2e2", color: "#dc2626", border: "#fca5a5" },
+  { id: "paid", label: "有給希望", bg: "#fef9c3", color: "#b45309", border: "#fde047" },
+];
+
 const INITIAL_STAFF = [
-  { id: 1, name: "田中 美咲", patternId: "supervisor", skills: ["supervisor_cook","cook_main"], workLimit: "40h", email: "tanaka@hotel.com" },
-  { id: 2, name: "鈴木 健太", patternId: "pattern1",   skills: ["supervisor_hall","hall"],      workLimit: "30h", email: "suzuki@hotel.com" },
-  { id: 3, name: "佐藤 花子", patternId: "pattern1",   skills: ["hall"],                        workLimit: "20h", email: "sato@hotel.com" },
-  { id: 4, name: "山田 太郎", patternId: "pattern2",   skills: ["cook_main","cook_sub"],        workLimit: "30h", email: "yamada@hotel.com" },
-  { id: 5, name: "中村 あかり",patternId: "pattern2",  skills: ["hall","cook_sub"],             workLimit: "20h", email: "nakamura@hotel.com" },
-  { id: 6, name: "伊藤 誠",   patternId: "pattern1",   skills: ["cook_main"],                  workLimit: "40h", email: "ito@hotel.com" },
+  { id: 1, name: "田中 美咲", rank: "chef",    patternId: "supervisor", workDays: [1,2,3,4,5],    skills: ["supervisor_cook","cook_main"], workLimit: "40h", email: "tanaka@hotel.com" },
+  { id: 2, name: "鈴木 健太", rank: "chief",   patternId: "pattern1",   workDays: [1,2,3,4,5],    skills: ["supervisor_hall","hall"],      workLimit: "30h", email: "suzuki@hotel.com" },
+  { id: 3, name: "佐藤 花子", rank: "general", patternId: "pattern1",   workDays: [1,2,3,4,5],    skills: ["hall"],                        workLimit: "20h", email: "sato@hotel.com" },
+  { id: 4, name: "山田 太郎", rank: "general", patternId: "pattern2",   workDays: [1,2,3,4,5,6],  skills: ["cook_main","cook_sub"],        workLimit: "30h", email: "yamada@hotel.com" },
+  { id: 5, name: "中村 あかり",rank: "pa",     patternId: "pattern2",   workDays: [1,2,3,4,5],    skills: ["hall","cook_sub"],             workLimit: "20h", email: "nakamura@hotel.com" },
+  { id: 6, name: "伊藤 誠",   rank: "general", patternId: "pattern1",   workDays: [0,1,2,3,4,5,6],skills: ["cook_main"],                  workLimit: "40h", email: "ito@hotel.com" },
 ];
 
 const USERS = [
@@ -54,9 +80,7 @@ const DOW = ["日","月","火","水","木","金","土"];
 // ============================================================
 // HELPERS
 // ============================================================
-// 給与期間：11日〜翌10日
 function getPayPeriodDays(year, month) {
-  // 当月11日〜翌月10日
   const days = [];
   for (let d = 11; d <= 31; d++) {
     const dt = new Date(year, month, d);
@@ -76,9 +100,7 @@ function getPatternById(patterns, id) {
   return patterns.find(p => p.id === id) || patterns[0];
 }
 
-// 月の法定労働時間（変形労働時間制）= 40h × 月の週数
 function getMonthlyLegalHours(year, month) {
-  // 簡易計算：暦日数/7*40
   const days = new Date(year, month + 1, 0).getDate();
   return Math.floor((days / 7) * 40 * 10) / 10;
 }
@@ -104,7 +126,6 @@ const css = `
   body { font-family: 'Noto Sans JP', sans-serif; background: #f0f4f8; color: #1e293b; }
   .app { min-height: 100vh; display: flex; flex-direction: column; }
 
-  /* LOGIN */
   .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f4c75 100%); }
   .login-card { background:rgba(255,255,255,0.06); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.12); border-radius:20px; padding:48px 40px; width:360px; color:#fff; }
   .login-title { font-family:'DM Serif Display',serif; font-size:26px; margin-bottom:4px; }
@@ -118,7 +139,6 @@ const css = `
   .login-err { color:#fca5a5; font-size:12px; margin-top:10px; text-align:center; }
   .login-hint { margin-top:24px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:rgba(255,255,255,0.4); line-height:1.8; }
 
-  /* TOPBAR */
   .topbar { background:#0f172a; color:#fff; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:52px; position:sticky; top:0; z-index:100; }
   .topbar-brand { font-family:'DM Serif Display',serif; font-size:17px; }
   .topbar-brand span { color:#60a5fa; }
@@ -126,31 +146,25 @@ const css = `
   .btn-logout { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
   .btn-logout:hover { background:rgba(255,255,255,0.15); }
 
-  /* NAV */
   .nav { background:#fff; border-bottom:1px solid #e2e8f0; padding:0 20px; display:flex; gap:2px; overflow-x:auto; }
   .nav-btn { padding:12px 14px; font-size:13px; font-weight:500; background:none; border:none; cursor:pointer; color:#64748b; border-bottom:2px solid transparent; white-space:nowrap; font-family:inherit; transition:all 0.15s; }
   .nav-btn.active { color:#2563eb; border-bottom-color:#2563eb; }
   .nav-btn:hover:not(.active) { color:#334155; }
 
-  /* MAIN */
   .main { flex:1; padding:20px; max-width:1200px; margin:0 auto; width:100%; }
 
-  /* SECTION */
   .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
   .section-title { font-size:17px; font-weight:700; color:#0f172a; }
   .section-sub { font-size:12px; color:#94a3b8; margin-top:2px; }
 
-  /* CARD */
   .card { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:18px; margin-bottom:14px; }
   .card-title { font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px; }
 
-  /* STATS */
   .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:16px; }
   .stat-card { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; }
   .stat-num { font-family:'DM Serif Display',serif; font-size:28px; color:#0f172a; }
   .stat-label { font-size:11px; color:#94a3b8; margin-top:2px; }
 
-  /* BUTTONS */
   .btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:inherit; transition:all 0.15s; }
   .btn-primary { background:#2563eb; color:#fff; }
   .btn-primary:hover { background:#1d4ed8; }
@@ -162,20 +176,17 @@ const css = `
   .btn-danger:hover { background:#b91c1c; }
   .btn-sm { padding:5px 10px; font-size:12px; }
 
-  /* ALERT */
   .alert { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px; display:flex; align-items:flex-start; gap:8px; }
   .alert-success { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
   .alert-info    { background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; }
   .alert-warning { background:#fef9c3; color:#854d0e; border:1px solid #fde047; }
   .alert-danger  { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
 
-  /* TABLE */
   .data-table { width:100%; border-collapse:collapse; font-size:13px; }
   .data-table th { padding:9px 12px; text-align:left; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; border-bottom:2px solid #e2e8f0; background:#f8fafc; }
   .data-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
   .data-table tr:hover td { background:#f8fafc; }
 
-  /* SHIFT TABLE */
   .shift-wrap { overflow-x:auto; }
   .shift-table { border-collapse:collapse; font-size:11px; }
   .shift-table th { background:#f8fafc; padding:6px 4px; text-align:center; font-weight:600; color:#64748b; border:1px solid #e2e8f0; white-space:nowrap; position:sticky; top:0; }
@@ -185,9 +196,7 @@ const css = `
   .shift-badge { display:inline-block; padding:2px 5px; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; white-space:nowrap; border:none; font-family:inherit; }
   .day-sat { color:#2563eb; }
   .day-sun { color:#dc2626; }
-  .day-separator { background:#e2e8f0 !important; }
 
-  /* BADGE */
   .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
   .badge-supervisor { background:#fef3c7; color:#b45309; }
   .badge-pattern1   { background:#dbeafe; color:#1d4ed8; }
@@ -195,7 +204,13 @@ const css = `
   .badge-off        { background:#f1f5f9; color:#94a3b8; }
   .tag { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:#f1f5f9; color:#475569; margin:1px; }
 
-  /* FORM */
+  /* ★ 区分バッジ */
+  .rank-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:700; }
+  .rank-chef    { background:#fce7f3; color:#be185d; }
+  .rank-chief   { background:#ede9fe; color:#6d28d9; }
+  .rank-general { background:#e0f2fe; color:#0369a1; }
+  .rank-pa      { background:#f0fdf4; color:#15803d; }
+
   .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
   .form-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
   .form-group { display:flex; flex-direction:column; gap:4px; }
@@ -207,51 +222,43 @@ const css = `
   .checkbox-item { display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0; }
   .checkbox-item.checked { background:#eff6ff; border-color:#2563eb; color:#1d4ed8; }
 
-  /* MODAL */
+  /* ★ 曜日選択チップ */
+  .dow-chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .dow-chip { padding:4px 10px; border-radius:20px; border:1.5px solid #e2e8f0; font-size:12px; font-weight:700; cursor:pointer; background:#fff; transition:all 0.15s; font-family:inherit; }
+  .dow-chip.selected { background:#eff6ff; border-color:#2563eb; color:#1d4ed8; }
+  .dow-chip.sun { color:#dc2626; }
+  .dow-chip.sat { color:#2563eb; }
+  .dow-chip.hol { color:#9333ea; }
+  .dow-chip.selected.sun { background:#fee2e2; border-color:#dc2626; color:#dc2626; }
+  .dow-chip.selected.sat { background:#dbeafe; border-color:#2563eb; color:#2563eb; }
+  .dow-chip.selected.hol { background:#f3e8ff; border-color:#9333ea; color:#9333ea; }
+
   .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; }
-  .modal { background:#fff; border-radius:16px; padding:24px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
+  .modal { background:#fff; border-radius:16px; padding:24px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
   .modal-title { font-size:16px; font-weight:700; margin-bottom:16px; color:#0f172a; }
   .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
 
-  /* CALENDAR */
-  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-  .cal-header { text-align:center; font-size:11px; font-weight:700; color:#94a3b8; padding:4px 0; }
-  .cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; cursor:pointer; font-weight:500; border:2px solid transparent; transition:all 0.15s; background:#f8fafc; }
-  .cal-day:hover { border-color:#93c5fd; }
-  .cal-day.requested { background:#fee2e2; color:#dc2626; border-color:#fca5a5; font-weight:700; }
-  .cal-day.empty { background:transparent; cursor:default; }
+  .month-nav { display:flex; align-items:center; gap:10px; }
+  .month-label { font-size:14px; font-weight:700; min-width:100px; text-align:center; }
+  .btn-icon { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; }
+  .btn-icon:hover { background:#e2e8f0; }
+  .pay-period-label { font-size:12px; color:#64748b; background:#f1f5f9; border-radius:6px; padding:4px 10px; }
 
-  /* MEAL COUNT SELECTOR */
-  .meal-selector { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-  .meal-btn { padding:6px 4px; border-radius:6px; border:2px solid #e2e8f0; background:#fff; font-size:11px; font-weight:600; cursor:pointer; text-align:center; font-family:inherit; transition:all 0.15s; }
-  .meal-btn:hover { border-color:#93c5fd; }
-  .meal-btn.selected { background:#eff6ff; border-color:#2563eb; color:#1d4ed8; }
-  .meal-btn.under100.selected { background:#dcfce7; border-color:#16a34a; color:#15803d; }
-  .meal-btn.under150.selected { background:#fef9c3; border-color:#ca8a04; color:#854d0e; }
-  .meal-btn.under200.selected { background:#ffedd5; border-color:#ea580c; color:#9a3412; }
-  .meal-btn.over200.selected  { background:#fee2e2; border-color:#dc2626; color:#991b1b; }
-
-  /* PROGRESS BAR */
   .progress-bar { height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; margin-top:4px; }
   .progress-fill { height:100%; border-radius:3px; transition:width 0.3s; }
   .progress-ok      { background:#16a34a; }
   .progress-warning { background:#f59e0b; }
   .progress-over    { background:#dc2626; }
 
-  /* MONTH NAV */
-  .month-nav { display:flex; align-items:center; gap:10px; }
-  .month-label { font-size:14px; font-weight:700; min-width:100px; text-align:center; }
-  .btn-icon { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; }
-  .btn-icon:hover { background:#e2e8f0; }
-
-  /* PAY PERIOD LABEL */
-  .pay-period-label { font-size:12px; color:#64748b; background:#f1f5f9; border-radius:6px; padding:4px 10px; }
+  /* ★ 希望休区分 凡例 */
+  .req-legend { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:12px; }
+  .req-legend-item { display:flex; align-items:center; gap:5px; }
+  .req-legend-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
 
   @media (max-width: 640px) {
     .main { padding: 12px; }
     .form-row, .form-row-3 { grid-template-columns: 1fr; }
     .stats-row { grid-template-columns: repeat(2, 1fr); }
-    .meal-selector { grid-template-columns: repeat(2, 1fr); }
   }
 `;
 
@@ -263,6 +270,13 @@ const PATTERN_STYLE = {
   pattern1:   { bg:"#dbeafe", color:"#1d4ed8", cls:"badge-pattern1" },
   pattern2:   { bg:"#dcfce7", color:"#15803d", cls:"badge-pattern2" },
   off:        { bg:"#f1f5f9", color:"#94a3b8", cls:"badge-off" },
+};
+
+const RANK_STYLE = {
+  chef:    "rank-chef",
+  chief:   "rank-chief",
+  general: "rank-general",
+  pa:      "rank-pa",
 };
 
 // ============================================================
@@ -310,36 +324,50 @@ function Topbar({ user, onLogout }) {
 }
 
 // ============================================================
-// STAFF MODAL
+// STAFF MODAL（区分・出勤曜日追加）
 // ============================================================
 function StaffModal({ staff, onSave, onClose, patterns }) {
-  const [form, setForm] = useState(staff || { name:"", patternId:"pattern1", skills:[], workLimit:"40h", email:"" });
+  const [form, setForm] = useState(staff || {
+    name:"", rank:"general", patternId:"pattern1", workDays:[1,2,3,4,5],
+    skills:[], workLimit:"40h", email:""
+  });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
   const toggleSkill = (sk) => {
     const cur = form.skills||[];
     set("skills", cur.includes(sk)?cur.filter(s=>s!==sk):[...cur,sk]);
   };
+
+  const toggleDow = (d) => {
+    const cur = form.workDays||[];
+    set("workDays", cur.includes(d)?cur.filter(x=>x!==d):[...cur,d]);
+  };
+
   const isEdit = !!staff;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-title">{isEdit?"スタッフ編集":"スタッフ追加（入社）"}</div>
+
+        {/* 氏名・区分を同行に */}
         <div className="form-row">
           <div className="form-group">
             <label className="form-label">氏名 *</label>
             <input className="form-input" value={form.name} onChange={e=>set("name",e.target.value)} placeholder="例：田中 太郎" />
           </div>
           <div className="form-group">
-            <label className="form-label">メールアドレス</label>
-            <input className="form-input" value={form.email} onChange={e=>set("email",e.target.value)} placeholder="例：tanaka@hotel.com" />
+            <label className="form-label">区分</label>
+            <select className="form-select" value={form.rank||"general"} onChange={e=>set("rank",e.target.value)}>
+              {STAFF_RANKS.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}
+            </select>
           </div>
         </div>
+
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">デフォルト出勤パターン</label>
-            <select className="form-select" value={form.patternId} onChange={e=>set("patternId",e.target.value)}>
-              {patterns.map(p=><option key={p.id} value={p.id}>{p.name}（{p.start}〜{p.end}）</option>)}
-            </select>
+            <label className="form-label">メールアドレス</label>
+            <input className="form-input" value={form.email} onChange={e=>set("email",e.target.value)} placeholder="例：tanaka@hotel.com" />
           </div>
           <div className="form-group">
             <label className="form-label">週の就労時間上限</label>
@@ -348,6 +376,37 @@ function StaffModal({ staff, onSave, onClose, patterns }) {
             </select>
           </div>
         </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">デフォルト出勤パターン</label>
+            <select className="form-select" value={form.patternId} onChange={e=>set("patternId",e.target.value)}>
+              {patterns.map(p=><option key={p.id} value={p.id}>{p.name}（{p.start}〜{p.end}）</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* ★ 出勤曜日選択 */}
+        <div className="form-group" style={{marginBottom:14}}>
+          <label className="form-label">出勤曜日（複数選択可）</label>
+          <div className="dow-chips" style={{marginTop:6}}>
+            {DOW_OPTIONS.map(d=>{
+              const selected = (form.workDays||[]).includes(d.id);
+              const cls = d.id===0?"sun":d.id===6?"sat":d.id===7?"hol":"";
+              return (
+                <button
+                  key={d.id}
+                  className={`dow-chip ${cls} ${selected?"selected":""}`}
+                  onClick={()=>toggleDow(d.id)}
+                  type="button"
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="form-group" style={{marginBottom:14}}>
           <label className="form-label">スキル（複数選択可）</label>
           <div className="checkbox-group" style={{marginTop:6}}>
@@ -359,6 +418,7 @@ function StaffModal({ staff, onSave, onClose, patterns }) {
             ))}
           </div>
         </div>
+
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>キャンセル</button>
           <button className="btn btn-primary" onClick={()=>{if(form.name)onSave(form);}}>保存</button>
@@ -407,7 +467,7 @@ function PatternModal({ onSave, onClose }) {
 }
 
 // ============================================================
-// ADMIN: STAFF MANAGEMENT
+// ADMIN: STAFF MANAGEMENT（区分列追加）
 // ============================================================
 function StaffManagement({ staff, setStaff, patterns, setPatterns }) {
   const [showAddStaff, setShowAddStaff] = useState(false);
@@ -434,18 +494,36 @@ function StaffManagement({ staff, setStaff, patterns, setPatterns }) {
         <button className="btn btn-primary" onClick={()=>setShowAddStaff(true)}>＋ スタッフ追加（入社）</button>
       </div>
 
-      {/* Staff Table */}
       <div className="card" style={{padding:0,overflow:"hidden",marginBottom:20}}>
         <table className="data-table">
-          <thead><tr><th>氏名</th><th>パターン</th><th>時間上限</th><th>スキル</th><th>操作</th></tr></thead>
+          <thead>
+            <tr>
+              <th>氏名</th>
+              <th>区分</th>
+              <th>パターン</th>
+              <th>出勤曜日</th>
+              <th>時間上限</th>
+              <th>スキル</th>
+              <th>操作</th>
+            </tr>
+          </thead>
           <tbody>
             {staff.map(s=>{
               const pat = getPatternById(patterns, s.patternId);
               const limit = WORK_HOUR_LIMITS.find(l=>l.id===s.workLimit);
+              const rank = STAFF_RANKS.find(r=>r.id===s.rank);
+              const workDayLabels = (s.workDays||[]).sort((a,b)=>a-b).map(d=>{
+                const opt = DOW_OPTIONS.find(o=>o.id===d);
+                return opt?.label||"";
+              }).join("・");
               return (
                 <tr key={s.id}>
                   <td style={{fontWeight:600}}>{s.name}</td>
+                  <td>
+                    {rank && <span className={`rank-badge ${RANK_STYLE[s.rank]||""}`}>{rank.label}</span>}
+                  </td>
                   <td><span className={`badge badge-${s.patternId}`}>{pat.name}<span style={{fontWeight:400,marginLeft:4,fontSize:10}}>{pat.start}〜{pat.end}</span></span></td>
+                  <td style={{fontSize:12,color:"#475569"}}>{workDayLabels||"—"}</td>
                   <td style={{fontSize:12,color:"#64748b"}}>{limit?.label}</td>
                   <td>{s.skills?.map(sk=><span key={sk} className="tag">{SKILLS_LIST.find(x=>x.id===sk)?.label}</span>)}</td>
                   <td>
@@ -461,7 +539,6 @@ function StaffManagement({ staff, setStaff, patterns, setPatterns }) {
         </table>
       </div>
 
-      {/* Pattern Management */}
       <div className="section-header">
         <div><div className="section-title" style={{fontSize:15}}>出勤パターン管理</div></div>
         <button className="btn btn-secondary" onClick={()=>setShowAddPattern(true)}>＋ パターン追加</button>
@@ -507,8 +584,9 @@ function StaffManagement({ staff, setStaff, patterns, setPatterns }) {
 
 // ============================================================
 // ADMIN: SHIFT MANAGEMENT
+// ★ 自動生成時に希望休を反映（毎回）
 // ============================================================
-function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMealCounts, payYear, payMonth, setPayYear, setPayMonth }) {
+function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMealCounts, requests, payYear, payMonth, setPayYear, setPayMonth }) {
   const payDays = useMemo(()=>getPayPeriodDays(payYear, payMonth),[payYear,payMonth]);
 
   const getKey = (y,m,d) => `${y}-${m}-${d}`;
@@ -532,10 +610,8 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
     }).length;
   };
 
-  // Alerts
   const alerts = useMemo(()=>{
     const list = [];
-    // Staff shortage alerts
     payDays.forEach(({year,month,day})=>{
       const required = getRequiredStaff(year,month,day);
       const actual   = getActualStaff(year,month,day);
@@ -544,7 +620,6 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
         list.push({ type:"warning", msg:`${month+1}/${day}（${DOW[dow]}）: 必要${required}名に対し${actual}名（${required-actual}名不足）` });
       }
     });
-    // Hours alerts
     staff.forEach(s=>{
       const total = calcStaffMonthlyHours(s.id, shifts, patterns, payDays);
       const legal = getMonthlyLegalHours(payYear, payMonth);
@@ -555,23 +630,51 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
     return list;
   },[payDays,shifts,staff,patterns]);
 
+  // ★ 自動生成：希望休を常に反映
   const generateShifts = () => {
     const newShifts = {};
     staff.forEach(s=>{
       newShifts[s.id] = {};
+      const workDays = s.workDays || [1,2,3,4,5]; // スタッフの出勤曜日設定
       let streak = 0;
+
       payDays.forEach(({year,month,day})=>{
         const key = getKey(year,month,day);
         const dow = new Date(year,month,day).getDay();
-        if(dow===0 || streak>=5){
-          newShifts[s.id][key]="off"; streak=0;
+        const reqType = requests[s.id]?.[key]; // "off" | "paid" | undefined
+
+        // 希望休（休日希望・有給希望）は必ず休みに
+        if (reqType === "off" || reqType === "paid") {
+          newShifts[s.id][key] = "off";
+          streak = 0;
+          return;
+        }
+
+        // 出勤曜日に含まれない、または5連勤超えなら休み
+        if (!workDays.includes(dow) || streak >= 5) {
+          newShifts[s.id][key] = "off";
+          streak = 0;
         } else {
-          newShifts[s.id][key]=s.patternId; streak++;
+          newShifts[s.id][key] = s.patternId;
+          streak++;
         }
       });
     });
     setShifts(newShifts);
   };
+
+  // ★ 希望休が反映されているか確認
+  const requestCount = useMemo(()=>{
+    let count = 0;
+    staff.forEach(s=>{
+      const reqs = requests[s.id] || {};
+      payDays.forEach(({year,month,day})=>{
+        const key = getKey(year,month,day);
+        if(reqs[key]) count++;
+      });
+    });
+    return count;
+  },[requests,staff,payDays]);
 
   const payLabel = `${payYear}年${payMonth+1}月11日〜${payMonth===11?payYear+1:payYear}年${payMonth===11?1:payMonth+2}月10日`;
 
@@ -588,11 +691,19 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
             <div className="month-label">{payYear}年{payMonth+1}月〜</div>
             <button className="btn-icon" onClick={()=>setPayMonth(m=>m===11?(setPayYear(y=>y+1),0):m+1)}>›</button>
           </div>
-          <button className="btn btn-primary" onClick={generateShifts}>⚡ 自動生成</button>
+          <button className="btn btn-primary" onClick={generateShifts}>
+            ⚡ 自動生成{requestCount>0?` （希望休${requestCount}件反映）`:""}
+          </button>
         </div>
       </div>
 
-      {/* Alerts */}
+      {/* ★ 希望休反映の案内 */}
+      {requestCount > 0 && (
+        <div className="alert alert-info">
+          📋 現在 {requestCount} 件の希望休申請があります。自動生成ボタンを押すと自動的に反映されます。
+        </div>
+      )}
+
       {alerts.map((a,i)=>(
         <div key={i} className={`alert alert-${a.type}`}>
           {a.type==="danger"?"🔴":"⚠️"} {a.msg}
@@ -602,7 +713,6 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
         <div className="alert alert-success">✓ 現在アラートはありません</div>
       )}
 
-      {/* Shift Table */}
       <div className="card" style={{padding:0}}>
         <div className="shift-wrap">
           <table className="shift-table">
@@ -620,12 +730,10 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
                 })}
                 <th>合計</th>
               </tr>
-              {/* Meal count row */}
               <tr>
                 <th className="staff-cell" style={{fontSize:10,color:"#94a3b8"}}>客数見込</th>
                 {payDays.map(({year,month,day})=>{
                   const mc = getMealCount(year,month,day);
-                  const mcDef = MEAL_COUNTS.find(x=>x.id===mc);
                   return (
                     <th key={`meal-${year}-${month}-${day}`} style={{padding:2}}>
                       <select style={{fontSize:9,border:"none",background:"transparent",cursor:"pointer",width:"100%",color:mc==="over200"?"#dc2626":mc==="under200"?"#ea580c":mc==="under150"?"#ca8a04":"#16a34a"}}
@@ -637,7 +745,6 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
                 })}
                 <th></th>
               </tr>
-              {/* Required staff row */}
               <tr>
                 <th className="staff-cell" style={{fontSize:10,color:"#94a3b8"}}>必要人数</th>
                 {payDays.map(({year,month,day})=>{
@@ -668,8 +775,16 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
                       const sh = getShift(s.id,year,month,day);
                       const pat = patterns.find(p=>p.id===sh);
                       const style = PATTERN_STYLE[sh] || PATTERN_STYLE.off;
+                      // ★ 希望休申請の表示
+                      const reqType = requests[s.id]?.[getKey(year,month,day)];
+                      const reqDef = REQUEST_TYPES.find(r=>r.id===reqType);
                       return (
-                        <td key={`${year}-${month}-${day}`} onClick={()=>cycleShift(s.id,year,month,day)} style={{cursor:"pointer"}}>
+                        <td key={`${year}-${month}-${day}`} onClick={()=>cycleShift(s.id,year,month,day)} style={{cursor:"pointer",position:"relative"}}>
+                          {reqDef && (
+                            <div style={{fontSize:8,color:reqDef.color,background:reqDef.bg,borderRadius:3,padding:"1px 3px",marginBottom:2,border:`1px solid ${reqDef.border}`}}>
+                              {reqDef.label}
+                            </div>
+                          )}
                           {sh!=="none"
                             ? <span className="shift-badge" style={{background:style.bg,color:style.color}}>{pat?pat.name:sh==="off"?"休":""}</span>
                             : <span style={{color:"#e2e8f0"}}>—</span>
@@ -686,13 +801,15 @@ function ShiftManagement({ staff, shifts, setShifts, patterns, mealCounts, setMe
         </div>
       </div>
 
-      {/* Legend */}
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:8}}>
         {patterns.map(p=>{
           const style = PATTERN_STYLE[p.id]||{bg:"#f1f5f9",color:"#475569"};
           return <span key={p.id} className="shift-badge" style={{background:style.bg,color:style.color}}>{p.name}（{p.start}〜{p.end}）</span>;
         })}
         <span className="shift-badge" style={{background:PATTERN_STYLE.off.bg,color:PATTERN_STYLE.off.color}}>休日</span>
+        {REQUEST_TYPES.map(r=>(
+          <span key={r.id} className="shift-badge" style={{background:r.bg,color:r.color,border:`1px solid ${r.border}`}}>申請：{r.label}</span>
+        ))}
       </div>
     </div>
   );
@@ -727,12 +844,15 @@ function Dashboard({ staff, shifts, patterns, payYear, payMonth }) {
           const pct   = Math.min((total/max)*100,100);
           const isOver = total>legal;
           const isWarn = limit && total>limit.weeklyMax*4.33;
+          const rank = STAFF_RANKS.find(r=>r.id===s.rank);
           return (
             <div key={s.id} style={{marginBottom:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
-                <span style={{fontWeight:600}}>{s.name}</span>
-                <span style={{color:isOver?"#dc2626":isWarn?"#f59e0b":"#64748b"}}>{total}h / {legal}h法定{isOver?" 🔴超過":isWarn?" ⚠️":""}
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3,alignItems:"center"}}>
+                <span style={{fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                  {s.name}
+                  {rank && <span className={`rank-badge ${RANK_STYLE[s.rank]||""}`}>{rank.label}</span>}
                 </span>
+                <span style={{color:isOver?"#dc2626":isWarn?"#f59e0b":"#64748b"}}>{total}h / {legal}h法定{isOver?" 🔴超過":isWarn?" ⚠️":""}</span>
               </div>
               <div className="progress-bar">
                 <div className={`progress-fill ${isOver?"progress-over":isWarn?"progress-warning":"progress-ok"}`} style={{width:`${pct}%`}} />
@@ -746,15 +866,28 @@ function Dashboard({ staff, shifts, patterns, payYear, payMonth }) {
 }
 
 // ============================================================
-// ADMIN: REQUESTS VIEW
+// ADMIN: REQUESTS VIEW（区分表示）
 // ============================================================
 function RequestsView({ staff, requests, payYear, payMonth }) {
   const payDays = useMemo(()=>getPayPeriodDays(payYear,payMonth),[payYear,payMonth]);
   return (
     <div>
       <div className="section-header"><div className="section-title">希望休一覧</div></div>
+
+      {/* 凡例 */}
+      <div className="req-legend">
+        {REQUEST_TYPES.map(r=>(
+          <div key={r.id} className="req-legend-item">
+            <span className="req-legend-dot" style={{background:r.bg,border:`1px solid ${r.border}`}}></span>
+            <span style={{color:r.color,fontWeight:600}}>{r.label}</span>
+          </div>
+        ))}
+      </div>
+
       {staff.map(s=>{
-        const reqs = (requests[s.id]||[]).filter(k=>{
+        const myReqs = requests[s.id]||{};
+        const rank = STAFF_RANKS.find(r=>r.id===s.rank);
+        const filteredKeys = Object.keys(myReqs).filter(k=>{
           const [y,m]=k.split("-").map(Number);
           return payDays.some(d=>d.year===y&&d.month===m);
         });
@@ -762,14 +895,22 @@ function RequestsView({ staff, requests, payYear, payMonth }) {
           <div key={s.id} className="card" style={{marginBottom:10}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
               <span style={{fontWeight:700}}>{s.name}</span>
-              <span style={{fontSize:12,color:"#94a3b8"}}>希望休 {reqs.length}日</span>
+              {rank && <span className={`rank-badge ${RANK_STYLE[s.rank]||""}`}>{rank.label}</span>}
+              <span style={{fontSize:12,color:"#94a3b8"}}>
+                休日希望 {filteredKeys.filter(k=>myReqs[k]==="off").length}日 ／
+                有給希望 {filteredKeys.filter(k=>myReqs[k]==="paid").length}日
+              </span>
             </div>
-            {reqs.length===0
+            {filteredKeys.length===0
               ? <span style={{fontSize:13,color:"#94a3b8"}}>申請なし</span>
               : <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {reqs.sort().map(k=>{
+                  {filteredKeys.sort().map(k=>{
                     const [y,m,d]=k.split("-").map(Number);
-                    return <span key={k} className="shift-badge" style={{background:"#fee2e2",color:"#dc2626"}}>{m+1}/{d}</span>;
+                    const rType = myReqs[k];
+                    const rDef = REQUEST_TYPES.find(r=>r.id===rType);
+                    return <span key={k} className="shift-badge" style={{background:rDef?.bg||"#fee2e2",color:rDef?.color||"#dc2626",border:`1px solid ${rDef?.border||"#fca5a5"}`}}>
+                      {m+1}/{d} {rDef?.label}
+                    </span>;
                   })}
                 </div>
             }
@@ -802,9 +943,8 @@ function MyShift({ user, shifts, patterns, payYear, payMonth, setPayYear, setPay
       </div>
       <div className="card">
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
-          {DOW.map(d=><div key={d} className="cal-header">{d}</div>)}
+          {DOW.map(d=><div key={d} className="cal-header" style={{textAlign:"center",fontSize:11,fontWeight:700,color:"#94a3b8",padding:"4px 0"}}>{d}</div>)}
         </div>
-        {/* Week rows */}
         {(() => {
           const rows = [];
           let week = [];
@@ -826,7 +966,7 @@ function MyShift({ user, shifts, patterns, payYear, payMonth, setPayYear, setPay
                 const dow = date.getDay();
                 const isSep = day===11||day===1;
                 return (
-                  <div key={ci} style={{background:sh!=="none"?style.bg:"#f8fafc",border:`2px solid ${sh!=="none"?style.color:"transparent"}${isSep?"":""} `,borderRadius:8,padding:"6px 2px",textAlign:"center",borderLeft:isSep?"3px solid #2563eb":undefined}}>
+                  <div key={ci} style={{background:sh!=="none"?style.bg:"#f8fafc",border:`2px solid ${sh!=="none"?style.color:"transparent"}`,borderRadius:8,padding:"6px 2px",textAlign:"center",borderLeft:isSep?"3px solid #2563eb":undefined}}>
                     <div style={{fontSize:12,fontWeight:600,color:dow===0?"#dc2626":dow===6?"#2563eb":"#374151"}}>{day}</div>
                     {pat && <div style={{fontSize:10,color:style.color,fontWeight:700}}>{pat.name}</div>}
                     {pat && <div style={{fontSize:9,color:"#94a3b8"}}>{pat.start}〜{pat.end}</div>}
@@ -843,33 +983,61 @@ function MyShift({ user, shifts, patterns, payYear, payMonth, setPayYear, setPay
 }
 
 // ============================================================
-// STAFF: REQUEST FORM
+// STAFF: REQUEST FORM（★ 休日希望・有給希望の区分）
 // ============================================================
 function RequestForm({ user, requests, setRequests, payYear, payMonth }) {
   const payDays = useMemo(()=>getPayPeriodDays(payYear,payMonth),[payYear,payMonth]);
   const [saved, setSaved] = useState(false);
-  const myReqs = requests[user.staffId]||[];
+  const myReqs = requests[user.staffId]||{};
 
+  // ★ タップするたびに: なし → 休日希望 → 有給希望 → なし
   const toggle = (key) => {
-    const cur = requests[user.staffId]||[];
-    const next = cur.includes(key)?cur.filter(x=>x!==key):[...cur,key];
-    setRequests(prev=>({...prev,[user.staffId]:next}));
+    const cur = myReqs[key];
+    let next;
+    if (!cur) next = "off";
+    else if (cur === "off") next = "paid";
+    else next = null;
+
+    setRequests(prev=>{
+      const updated = {...(prev[user.staffId]||{})};
+      if (next) updated[key] = next;
+      else delete updated[key];
+      return {...prev,[user.staffId]:updated};
+    });
     setSaved(false);
   };
+
+  const offCount = Object.values(myReqs).filter(v=>v==="off").length;
+  const paidCount = Object.values(myReqs).filter(v=>v==="paid").length;
 
   return (
     <div>
       <div className="section-header">
         <div>
           <div className="section-title">希望休申請</div>
-          <div className="section-sub">休みたい日をタップで選択</div>
+          <div className="section-sub">日付をタップ → 休日希望 → 有給希望 → 解除</div>
         </div>
         <button className="btn btn-success" onClick={()=>setSaved(true)}>保存する</button>
       </div>
       {saved && <div className="alert alert-success">✓ 希望休を保存しました</div>}
+
+      {/* ★ 凡例 */}
+      <div className="req-legend" style={{marginBottom:12}}>
+        <div className="req-legend-item">
+          <span className="req-legend-dot" style={{background:"#f8fafc",border:"1px solid #e2e8f0"}}></span>
+          <span style={{color:"#64748b"}}>未選択（タップで切替）</span>
+        </div>
+        {REQUEST_TYPES.map(r=>(
+          <div key={r.id} className="req-legend-item">
+            <span className="req-legend-dot" style={{background:r.bg,border:`1px solid ${r.border}`}}></span>
+            <span style={{color:r.color,fontWeight:600}}>{r.label}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="card">
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
-          {DOW.map(d=><div key={d} className="cal-header">{d}</div>)}
+          {DOW.map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:"#94a3b8",padding:"4px 0"}}>{d}</div>)}
         </div>
         {(() => {
           const rows=[];let week=[];
@@ -883,20 +1051,34 @@ function RequestForm({ user, requests, setRequests, payYear, payMonth }) {
                 if(!cell)return<div key={ci}/>;
                 const {year,month,day,date}=cell;
                 const key=`${year}-${month}-${day}`;
-                const isReq=myReqs.includes(key);
+                const rType = myReqs[key];
+                const rDef = REQUEST_TYPES.find(r=>r.id===rType);
                 const dow=date.getDay();
                 return (
-                  <div key={ci} onClick={()=>toggle(key)} style={{background:isReq?"#fee2e2":"#f8fafc",border:`2px solid ${isReq?"#fca5a5":"transparent"}`,borderRadius:8,padding:"8px 2px",textAlign:"center",cursor:"pointer"}}>
-                    <div style={{fontSize:13,fontWeight:600,color:isReq?"#dc2626":dow===0?"#dc2626":dow===6?"#2563eb":"#374151"}}>{day}</div>
-                    {isReq&&<div style={{fontSize:9,color:"#dc2626"}}>希望休</div>}
+                  <div
+                    key={ci}
+                    onClick={()=>toggle(key)}
+                    style={{
+                      background: rDef ? rDef.bg : "#f8fafc",
+                      border: `2px solid ${rDef ? rDef.border : "transparent"}`,
+                      borderRadius:8,
+                      padding:"8px 2px",
+                      textAlign:"center",
+                      cursor:"pointer",
+                      transition:"all 0.15s",
+                    }}
+                  >
+                    <div style={{fontSize:13,fontWeight:600,color:rDef?rDef.color:dow===0?"#dc2626":dow===6?"#2563eb":"#374151"}}>{day}</div>
+                    {rDef && <div style={{fontSize:9,color:rDef.color,fontWeight:700,lineHeight:1.2}}>{rDef.label}</div>}
                   </div>
                 );
               })}
             </div>
           ));
         })()}
-        <div style={{marginTop:12,fontSize:13,color:"#64748b"}}>
-          選択中：{myReqs.length===0?"なし":myReqs.sort().map(k=>{const[y,m,d]=k.split("-").map(Number);return `${m+1}/${d}`;}).join("、")}
+        <div style={{marginTop:12,fontSize:13,color:"#64748b",display:"flex",gap:16,flexWrap:"wrap"}}>
+          <span>休日希望：<strong style={{color:"#dc2626"}}>{offCount}日</strong></span>
+          <span>有給希望：<strong style={{color:"#b45309"}}>{paidCount}日</strong></span>
         </div>
       </div>
     </div>
@@ -955,7 +1137,7 @@ export default function App() {
   const [requests, setRequests] = useState({});
   const [notifPrefs,setNotifPrefs]=useState({});
   const [mealCounts,setMealCounts]=useState({});
-  const [payYear,  setPayYear]  = useState(now.getMonth()>=10?now.getFullYear():now.getFullYear());
+  const [payYear,  setPayYear]  = useState(now.getFullYear());
   const [payMonth, setPayMonth] = useState(now.getMonth());
 
   if(!user) return (<><style>{css}</style><LoginScreen onLogin={u=>{setUser(u);setTab(u.role==="admin"?"dashboard":"myshift");}}/></>);
@@ -972,7 +1154,6 @@ export default function App() {
     {key:"notif",   label:"通知設定"},
   ];
   const tabs = user.role==="admin"?adminTabs:staffTabs;
-  const staffMember = staff.find(s=>s.id===user.staffId);
 
   return (
     <>
@@ -986,7 +1167,7 @@ export default function App() {
         </nav>
         <main className="main">
           {user.role==="admin"&&tab==="dashboard"&&<Dashboard staff={staff} shifts={shifts} patterns={patterns} payYear={payYear} payMonth={payMonth}/>}
-          {user.role==="admin"&&tab==="shift"&&<ShiftManagement staff={staff} shifts={shifts} setShifts={setShifts} patterns={patterns} mealCounts={mealCounts} setMealCounts={setMealCounts} payYear={payYear} payMonth={payMonth} setPayYear={setPayYear} setPayMonth={setPayMonth}/>}
+          {user.role==="admin"&&tab==="shift"&&<ShiftManagement staff={staff} shifts={shifts} setShifts={setShifts} patterns={patterns} mealCounts={mealCounts} setMealCounts={setMealCounts} requests={requests} payYear={payYear} payMonth={payMonth} setPayYear={setPayYear} setPayMonth={setPayMonth}/>}
           {user.role==="admin"&&tab==="staff"&&<StaffManagement staff={staff} setStaff={setStaff} patterns={patterns} setPatterns={setPatterns}/>}
           {user.role==="admin"&&tab==="requests"&&<RequestsView staff={staff} requests={requests} payYear={payYear} payMonth={payMonth}/>}
           {user.role==="staff"&&tab==="myshift"&&<MyShift user={user} shifts={shifts} patterns={patterns} payYear={payYear} payMonth={payMonth} setPayYear={setPayYear} setPayMonth={setPayMonth}/>}
